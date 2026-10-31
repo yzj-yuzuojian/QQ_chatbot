@@ -1,0 +1,49 @@
+[Unit]
+Description=QQ 陪伴机器人
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=qqcompanion
+Group=qqcompanion
+WorkingDirectory=/opt/qq-companion/app
+
+# 敏感值走 EnvironmentFile，不进代码库，也不会出现在 ps 里
+EnvironmentFile=/etc/qq-companion/env
+ExecStart=/opt/qq-companion/venv/bin/python -m companion.main
+
+Restart=always
+RestartSec=5
+# 反复崩溃时不要疯狂重启
+StartLimitBurst=10
+StartLimitIntervalSec=300
+
+# 日志走 journald
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=qq-companion
+
+# ---- 安全加固 ----
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+# 只有数据目录可写
+ReadWritePaths=/var/lib/qq-companion
+
+# 资源限制（这台机器只有 3.7GB，还有别的服务）
+MemoryMax=768M
+TasksMax=256
+
+[Install]
+WantedBy=multi-user.target

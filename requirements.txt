@@ -1,0 +1,10 @@
+# 依赖
+# 只有 4 个直接依赖，没有 torch / 向量数据库这类重家伙。
+aiohttp>=3.9,<4
+websockets>=12       # 连 QQ 的 WebSocket 网关
+cryptography>=42     # Fernet 加密客户 key
+numpy>=1.26          # 向量检索用，纯 CPU，约 15MB 内存
+
+# 开发/测试（可选）
+# ruff>=0.4
+# pytest>=8

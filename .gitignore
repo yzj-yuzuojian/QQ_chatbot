@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# 运行数据 —— 绝对不能提交
+# 数据库里有客户的聊天记录和加密后的 key
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+data/
+/var/
+
+# 密钥与配置文件 —— 这几条最关键
+# config.json 里可能含 AppSecret / embedding key，绝不能进仓库
+config.json
+config.local.json
+*.config.json
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+env
+secret*
+COMPANION_SECRET*
+
+# 日志与临时文件
+*.log
+logs/
+tmp/
+.tmp/
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# 测试产物
+.pytest_cache/
+.coverage
+htmlcov/
+
+# 内部文档（含真实域名、AppID、服务器信息）
+# 这些文件保留在本地，但不进仓库
+docs/internal/
+
+# 备份文件
+*.bak
+*.backup
+*.orig
+*~
+backups/

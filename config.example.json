@@ -1,0 +1,41 @@
+{
+  "_说明": [
+    "这是配置模板。复制成 config.json 后填真实值。",
+    "",
+    "   cp config.example.json /opt/qq-companion/config.json",
+    "   chmod 600 /opt/qq-companion/config.json",
+    "",
+    "【重要】config.json 里有密钥，绝对不要提交到 git。",
+    "仓库里的 .gitignore 已经挡住了它，但请自己再确认一次：",
+    "   git status --short | grep config.json     # 应该是空",
+    "",
+    "也可以只用环境变量（deploy/env.example），那样更安全：",
+    "环境变量优先级高于本文件。"
+  ],
+
+  "app_id": "填你的 QQ 机器人 AppID",
+  "app_secret": "填你的 QQ 机器人 AppSecret",
+
+  "api_base": "https://oldnewapi.yuzuojian.top/v1",
+  "site_url": "https://oldnewapi.yuzuojian.top",
+
+  "db_path": "/var/lib/qq-companion/data.db",
+  "bind_host": "127.0.0.1",
+  "bind_port": 18401,
+  "bind_url": "http://127.0.0.1:18401/bind",
+
+  "_向量记忆说明": [
+    "embed_api_key 留空则自动降级为纯关键词检索（召回率约 70%，配了是 100%）。",
+    "bge-m3 在 SiliconFlow 上是免费的，注册即可用。",
+    "换别的 OpenAI 兼容 embedding 服务也可以，改 api_base 和 model。"
+  ],
+  "embed_enabled": true,
+  "embed_api_base": "https://api.siliconflow.cn/v1",
+  "embed_api_key": "",
+  "embed_model": "BAAI/bge-m3",
+
+  "secret": "填 COMPANION_SECRET（python -m companion.cli gen-secret 生成）",
+
+  "workers": 2,
+  "log_level": "INFO"
+}
