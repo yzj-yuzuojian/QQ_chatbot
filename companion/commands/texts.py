@@ -47,6 +47,7 @@ HELP_TEXT = """【我能做什么】
 /export   导出你的全部数据
 /privacy  隐私说明
 /forget   删掉全部记忆（不可恢复）
+/start    首次使用引导
 /help     这个说明
 
 ───── 提示 ─────

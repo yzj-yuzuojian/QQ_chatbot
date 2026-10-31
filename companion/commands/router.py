@@ -974,6 +974,34 @@ class Router:
             lines.append("")
             lines.append("⚠️ 还没绑定 key，发 /setkey")
 
+        # 记忆通道健康度。
+        # 后台任务是异步跑的，失败了客户完全没感觉，
+        # 不加这段客户会一直以为"它记得我"，实际早就停了。
+        health = self.store.memory_health(user_id)
+        bad = [
+            (k, v) for k, v in health.items()
+            if v is not None
+        ]
+        if bad:
+            lines.append("")
+            lines.append("【记忆】")
+            name = {"facts_failed": "事实抽取", "summary_failed": "对话摘要"}
+            for k, v in bad:
+                when = time.strftime("%m-%d %H:%M", time.localtime(v["at"]))
+                lines.append(f"⚠️ {name.get(k, k)} 上次失败（{when}）")
+                lines.append(f"   {v['reason'][:60]}")
+            lines.append("   大概率是 key 失效或余额不足，发 /model 检查")
+        else:
+            lines.append("")
+            lines.append("【记忆】正常")
+
+        # 生图配置
+        if cfg.get("image_cipher"):
+            lines.append("")
+            lines.append("【生图】")
+            lines.append(f"sk-****{cfg.get('image_suffix') or ''}")
+            lines.append(f"模型：{cfg.get('image_model') or 'gpt-image-2'}")
+
         return "\n".join(lines)
 
     # ------------------------------------------------------------------

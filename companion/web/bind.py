@@ -35,6 +35,9 @@ PAGE = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>绑定 API Key</title>
 <style>
+.opt{margin:10px 0;font-size:13px;color:#5b6b84}
+.opt summary{cursor:pointer;user-select:none}
+.opt input{margin-top:8px;width:100%;padding:11px 13px;border:1px solid #d3dae6;border-radius:9px;font-size:14px;font-family:inherit}
   *{box-sizing:border-box}
   body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
        background:#0f1115;color:#e6e8eb;font:15px/1.6 -apple-system,BlinkMacSystemFont,
@@ -81,6 +84,12 @@ PAGE = """<!DOCTYPE html>
   <form id="f">
     <label for="k">你的 API Key</label>
     <input id="k" type="password" placeholder="sk-..." autocomplete="off" spellcheck="false">
+
+    <details class="opt">
+      <summary>这个 key 和聊天不在同一个站？（可选）</summary>
+      <input id="base" type="text" placeholder="https://另一个中转站/v1" autocomplete="off" spellcheck="false">
+    </details>
+
     <button id="b" type="submit">验证并绑定</button>
   </form>
   <div id="m" class="msg"></div>
@@ -110,9 +119,11 @@ f.addEventListener('submit',async e=>{
   if(!key){show('请输入 key',false);return;}
   b.disabled=true;b.textContent='验证中…';
   try{
+    const baseEl=document.getElementById('base');
+    const base=baseEl?baseEl.value.trim():'';
     const r=await fetch('/bind/api',{method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({code:__CODEJSON__,key})});
+      body:JSON.stringify({code:__CODEJSON__,key,api_base:base})});
     const d=await r.json();
     if(d.ok){
       k.value='';
@@ -211,7 +222,11 @@ def make_app(
         user_id, kind = info_of_code
 
         # ② 校验 key
-        info = await check_key(session, api_base, key)
+        # 生图 key 要拿它自己的站点去校验，不能用聊天的
+        check_base = api_base
+        if kind == "image":
+            check_base = str(data.get("api_base") or "").strip() or api_base
+        info = await check_key(session, check_base, key)
 
         # 额度接口限流/故障时，只要模型列表拿到了，就说明 key 是好的。
         # 实测：/api/usage/token/ 429 而 /v1/models 200 —— 不能因此拒绝绑定。
@@ -234,11 +249,18 @@ def make_app(
         cipher = crypto.encrypt(key)
         if kind == "image":
             # 生图 key：单独存，不碰聊天 key。
+            #
+            # api_base 用客户自己在页面上填的（可选），没填才用默认值。
+            # 为什么不能直接用聊天 key 的 api_base：
+            #   客户完全可能在 A 站聊天、B 站生图（很常见，
+            #   便宜的和画质好的往往不是同一家）。
+            #   用聊天的地址去调生图，会 404 或者报"没有这个模型"。
+            img_base = str(data.get("api_base") or "").strip() or api_base
             store.set_image_key(
                 user_id,
                 cipher=cipher,
                 suffix=key[-4:],
-                api_base=api_base,
+                api_base=img_base,
             )
             log(f"[bind] user={user_id} image-key fp={T.fingerprint(key)}")
             return _json(

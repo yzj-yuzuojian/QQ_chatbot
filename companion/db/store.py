@@ -348,15 +348,14 @@ class Store:
         with self.conn:
             cur = self.conn.execute(
                 """INSERT INTO messages
-                   (user_id, persona_id, role, content, bigrams, tokens, created_at)
-                   VALUES (?,?,?,?,?,?,?)""",
+                   (user_id, persona_id, role, content, bigrams, created_at)
+                   VALUES (?,?,?,?,?,?)""",
                 (
                     user_id,
                     persona_id,
                     role,
                     body,
                     T.bigrams_for_index(body),
-                    T.estimate_tokens(body),
                     now(),
                 ),
             )
@@ -439,7 +438,7 @@ class Store:
         cur = self.conn.execute(
             """SELECT key, value, confidence, source FROM facts
                WHERE user_id=? AND (persona_id='' OR persona_id=?)
-               ORDER BY source='manual' DESC, confidence DESC, key""",
+               ORDER BY source='manual' DESC, LENGTH(value) DESC, key""",
             (user_id, persona_id),
         )
         return [dict(r) for r in cur.fetchall()]
@@ -632,6 +631,40 @@ class Store:
                        tokens_in = tokens_in + excluded.tokens_in,
                        tokens_out = tokens_out + excluded.tokens_out""",
                 (user_id, day, tokens_in, tokens_out),
+            )
+
+    def note_memory_failure(self, user_id: int, kind: str, reason: str) -> None:
+        """记下后台记忆任务失败。
+
+        为什么要记：摘要/事实抽取是后台跑的，失败了客户毫无感知，
+        会一直以为"它在记着我说的话"，实际上记忆早就停滞了。
+        /stats 里会读这个，让客户知道该检查 key 了。
+        """
+        ts = now()
+        with self.conn:
+            self.conn.execute(
+                """INSERT INTO meta (k, v) VALUES (?, ?)
+                   ON CONFLICT(k) DO UPDATE SET v=excluded.v""",
+                (f"memfail:{user_id}:{kind}", f"{ts}|{reason[:100]}"),
+            )
+
+    def memory_health(self, user_id: int) -> dict[str, Any]:
+        """记忆通道健康度，给 /stats 用。"""
+        out: dict[str, Any] = {"facts_failed": None, "summary_failed": None}
+        for kind in ("facts", "summary"):
+            row = self.conn.execute(
+                "SELECT v FROM meta WHERE k=?", (f"memfail:{user_id}:{kind}",)
+            ).fetchone()
+            if row:
+                ts, reason = str(row["v"]).split("|", 1)
+                out[f"{kind}_failed"] = {"at": int(ts), "reason": reason}
+        return out
+
+    def clear_memory_failure(self, user_id: int) -> None:
+        """任务成功一次就清掉失败记录，避免历史失败一直挂着。"""
+        with self.conn:
+            self.conn.execute(
+                "DELETE FROM meta WHERE k LIKE ?", (f"memfail:{user_id}:%",)
             )
 
     def get_usage(self, user_id: int, days: int = 30) -> dict[str, Any]:

@@ -81,7 +81,6 @@ CREATE TABLE IF NOT EXISTS messages (
     content     TEXT    NOT NULL,
     -- 预切好的 bigram 索引，空白分隔
     bigrams     TEXT    NOT NULL,
-    tokens      INTEGER NOT NULL DEFAULT 0,
     created_at  INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_messages_user_time ON messages(user_id, created_at);
@@ -194,7 +193,6 @@ CREATE TABLE IF NOT EXISTS facts (
     -- 来源：auto = 模型自动抽取，manual = 客户自己写的。
     -- manual 的不会被自动抽取覆盖，也不会被 /facts clear 之外的任何操作删掉。
     source      TEXT    NOT NULL DEFAULT 'auto',
-    source_msg  INTEGER,
     updated_at  INTEGER NOT NULL,
     PRIMARY KEY (user_id, persona_id, key)
 );

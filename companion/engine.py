@@ -342,5 +342,14 @@ class Engine:
                     prov["model"],
                 )
             self.store.finish_job(int(job["id"]), True)
+            # 成功了就清掉失败标记，否则一次失败会挂一辈子
+            if kind in ("facts", "summary"):
+                self.store.clear_memory_failure(user_id)
         except Exception as e:
+            # 后台任务失败客户看不见，必须留痕，否则 /stats 里
+            # 永远显示"一切正常"，而记忆其实早停了。
+            if kind in ("facts", "summary"):
+                self.store.note_memory_failure(
+                    user_id, kind, f"{type(e).__name__}: {e}"[:100]
+                )
             self.store.finish_job(int(job["id"]), False, f"{type(e).__name__}: {e}")

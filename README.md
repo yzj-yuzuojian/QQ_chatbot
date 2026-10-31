@@ -153,7 +153,10 @@ sudo journalctl -u qq-companion -f
 ### 验证
 
 ```bash
-# 用真实 key 跑全功能自测（57 项）
+# 结构审计：查死字段、半成品功能（不需要 key，秒级）
+.venv/bin/python tests/audit.py
+
+# 全功能自测：用真实 key 跑 57 项
 TEST_REAL_KEY=sk-你的密钥 COMPANION_ROOT=. .venv/bin/python tests/selftest.py
 ```
 
