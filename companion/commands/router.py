@@ -14,6 +14,7 @@ from typing import Any
 from .. import text as T
 from ..db.store import Store
 from ..llm.provider import NoProvider, ProviderGate, check_key
+from ..media import image as IMG
 from ..persona import cards as C
 from .settings import (
     COSTLY_COMMANDS,
@@ -227,6 +228,8 @@ class Router:
                 return f"已解绑聊天 key，记忆还在。{tail}", True
             if name in ("/setimage", "/image"):
                 return await self._cmd_setimage(user_id, chat_type), True
+            if name in ("/imagemodel", "/imgmodel"):
+                return await self._cmd_imagemodel(user_id, cmd.args), True
             if name == "/delimage":
                 self.store.clear_image_key(user_id)
                 return "已解绑生图 key。聊天不受影响。", True
@@ -304,9 +307,93 @@ class Router:
             "生图是按张收费的，比聊天贵不少，所以单独算。\n"
             "这个 key 要能调 gpt-image 系列模型。\n"
             "不支持的话，发图时会告诉你是分组没权限。\n\n"
-            "配好之后直接说「画一只猫」就行。\n"
+            "配好之后发 /imagemodel 选生图模型，\n"
+            "然后直接说「画一只猫」就行。\n"
             "不想要了发 /delimage。"
         )
+
+    # ------------------------------------------------------------------
+    # /imagemodel —— 生图模型（和聊天模型分开）
+    # ------------------------------------------------------------------
+
+    async def _cmd_imagemodel(self, user_id: int, args: list[str]) -> str:
+        """选生图模型。
+
+        为什么要单独一个命令：
+            生图 key 和聊天 key 是两个不同的分组授权，
+            可用模型列表完全不同。之前写死 gpt-image-2，
+            客户要是没有这个模型就只能报错，改成让他自己选。
+        """
+        cfg = self.store.get_config(user_id)
+        if not cfg.get("image_cipher"):
+            return "还没配生图 key。先发 /setimage。"
+
+        api_base = cfg.get("image_api_base") or self.api_base
+        try:
+            key = self.crypto.decrypt(cfg["image_cipher"])
+        except Exception:
+            return "生图 key 解密失败，请重新 /setimage。"
+
+        info = await check_key(self.session, api_base, key)
+
+        if info.available:
+            candidates = info.available
+        elif info.models:
+            candidates = sorted(info.models)
+        else:
+            # 查不到列表时不能编造，让客户手输
+            current = cfg.get("image_model") or IMG.DEFAULT_IMAGE_MODEL
+            if args:
+                self.store.update_config(user_id, image_model=args[0].strip())
+                return f"已设为：{args[0].strip()}\n（没能拿到这个 key 的模型列表）"
+            return (
+                f"拿不到这个 key 的模型列表（{info.error or '未知原因'}）。\n\n"
+                f"当前用：{current}\n"
+                "可以直接发模型名：/imagemodel gpt-image-2"
+            )
+
+        # 只保留看起来能生图的。不能只信名字，所以同时给全量提示。
+        img_like = [
+            m for m in candidates
+            if any(k in m.lower() for k in ("image", "dall", "flux", "sd", "midjourney", "draw"))
+        ]
+        pool = img_like or candidates
+        current = cfg.get("image_model") or IMG.DEFAULT_IMAGE_MODEL
+
+        if not args:
+            lines = [f"当前生图模型：{current}\n", "可用："]
+            for i, m in enumerate(pool, 1):
+                mark = " ←" if m == current else ""
+                lines.append(f"  {i}. {m}{mark}")
+            lines.append("\n发 /imagemodel 序号 切换")
+            if img_like and len(img_like) < len(candidates):
+                lines.append(
+                    f"（这个 key 共 {len(candidates)} 个模型，"
+                    "只列出了看着能生图的。要全量就发 /imagemodel 模型名）"
+                )
+            lines.append("\n生图按张计费，用你自己的 key 付钱。")
+            return "\n".join(lines)
+
+        target = args[0].strip()
+        if target.isdigit():
+            idx = int(target) - 1
+            if idx < 0 or idx >= len(pool):
+                return f"序号超出范围（1-{len(pool)}）"
+            model = pool[idx]
+        else:
+            model = target
+
+        # 和聊天模型一样：校验必须在这个 key 的可用列表里
+        if candidates and model not in candidates:
+            msg = f"这个 key 不能用 {model}。"
+            hint = _closest(model, pool)
+            if hint:
+                msg += f"\n你是不是想用：{hint}"
+            msg += "\n\n发 /imagemodel 看完整列表"
+            return msg
+
+        self.store.update_config(user_id, image_model=model)
+        return f"生图模型已切换到：{model}\n\n直接说「画一只猫」试试。"
 
     # ------------------------------------------------------------------
     # /model

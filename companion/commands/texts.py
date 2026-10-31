@@ -18,7 +18,8 @@ HELP_TEXT = """【我能做什么】
 ───── 配置 ─────
 /setkey   绑定聊天用的 API Key
 /setimage 绑定生图 key（要画图才需要）
-/model    选模型、看当前模型
+/model    选聊天模型
+/imagemodel 选生图模型
 /delkey   换聊天 key（记忆保留）
 /delimage 解绑生图 key
 

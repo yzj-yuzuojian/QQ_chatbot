@@ -257,15 +257,27 @@ class Store:
         )
 
     def set_image_key(
-        self, user_id: int, cipher: str, suffix: str, api_base: str
+        self,
+        user_id: int,
+        cipher: str,
+        suffix: str,
+        api_base: str,
+        model: str = "",
     ) -> None:
-        """配生图 key。和聊天 key 独立，互不影响。"""
-        self.update_config(
-            user_id,
-            image_cipher=cipher,
-            image_suffix=suffix,
-            image_api_base=api_base,
-        )
+        """配生图 key。和聊天 key 独立，互不影响。
+
+        model 为空表示用默认值（gpt-image-2），客户之后可以用
+        /imagemodel 改。这里不覆盖已有的 model，
+        否则客户换 key 就得重新选一次模型。
+        """
+        fields: dict[str, Any] = {
+            "image_cipher": cipher,
+            "image_suffix": suffix,
+            "image_api_base": api_base,
+        }
+        if model:
+            fields["image_model"] = model
+        self.update_config(user_id, **fields)
 
     def clear_image_key(self, user_id: int) -> None:
         self.update_config(
